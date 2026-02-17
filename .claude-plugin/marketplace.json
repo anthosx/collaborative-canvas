@@ -15,7 +15,10 @@
         "name": "Anthosx",
         "email": "canvas@anthosx.com"
       },
-      "source": ".",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/anthosx/collaborative-canvas.git"
+      },
       "category": "productivity"
     }
   ]
