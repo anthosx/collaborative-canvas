@@ -4,19 +4,23 @@
 
 > AI-powered visual collaboration powered by Excalidraw. Create diagrams, flowcharts, and architecture sketches with Claude's assistance. Or just draw with Claude for fun.
 
-## ⚠️ Build Required Before Distribution
+## Distribution Model
 
-This plugin must be built before installation or distribution. Run the setup script:
+The MCP server is pre-bundled (`mcp-server/dist/bundle.cjs`) and electron source is pre-compiled (`electron-app/dist/`), both committed to git. The packaged Electron `.app` (282MB) is distributed via **GitHub Releases**.
 
+**First use**: When a user opens a canvas for the first time, the MCP server auto-detects the missing Electron app and runs `setup.sh` to download it. No manual build step needed.
+
+**Manual setup** (if auto-download fails):
 ```bash
 ./scripts/setup.sh
 ```
 
-This builds:
-- MCP server → `mcp-server/dist/`
-- Electron app → `electron-app/release/mac/Collaborative Canvas.app`
-
-Without building, the plugin will fail to load (missing compiled JavaScript and packaged app).
+**For maintainers** (rebuilding artifacts):
+```bash
+cd mcp-server && npm install && npm run bundle   # Rebuild MCP bundle
+cd electron-app && npm install && npm run build   # Rebuild electron dist
+cd electron-app && npm run package:dir            # Rebuild .app for release
+```
 
 ---
 
@@ -335,18 +339,22 @@ Window closes gracefully
 | Compact JSON | ~4.9x compression | Prevents token limit issues |
 | Listen timeout | 30 minutes | Long collaboration sessions |
 | File locking | proper-lockfile | Atomic queue operations |
+| Distribution | Pre-bundled MCP + GitHub Release Electron | Zero-build install, auto-downloads .app on first use |
+| MCP bundling | esbuild → single CJS file | No node_modules needed at runtime (828KB) |
 
 ## Development
 
 ### Building
 
 ```bash
-# Full setup
-./scripts/setup.sh
+# Rebuild MCP bundle (after changing server code)
+cd mcp-server && npm install && npm run bundle
 
-# Individual components
-cd mcp-server && npm run build
-cd electron-app && npm run build && npm run package:dir
+# Rebuild Electron dist (after changing app code)
+cd electron-app && npm install && npm run build
+
+# Package Electron for release
+cd electron-app && npm run package:dir
 ```
 
 ### Development Mode
@@ -396,3 +404,6 @@ claude
   - Electron desktop app
   - PostToolUse hooks for collaboration
   - XDG-compliant storage
+  - Pre-bundled MCP server (esbuild, zero-dependency runtime)
+  - GitHub Releases for Electron app distribution
+  - Auto-download on first use

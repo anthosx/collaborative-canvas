@@ -1,9 +1,9 @@
 # Dependencies
 node_modules/
 
-# Build output
-mcp-server/dist/
-electron-app/dist/
+# Build output (pre-built artifacts are committed for zero-build install)
+mcp-server/dist/*
+!mcp-server/dist/bundle.cjs
 electron-app/release/
 
 # Environment

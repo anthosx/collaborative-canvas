@@ -3,13 +3,16 @@ import { exec, spawn } from "child_process";
 import { promisify } from "util";
 import * as net from "net";
 import * as path from "path";
-import { fileURLToPath } from "url";
 
 const execAsync = promisify(exec);
 
-// Get the directory path for the current module
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+function getPluginRoot(): string {
+  const root = process.env.CANVAS_PLUGIN_ROOT;
+  if (!root) {
+    throw new Error('CANVAS_PLUGIN_ROOT environment variable is not set. This is configured in .mcp.json.');
+  }
+  return root;
+}
 
 /**
  * Check if a port is in use
@@ -30,8 +33,7 @@ async function isPortInUse(port: number): Promise<boolean> {
  * Start the web app servers (Express API + Vite widget)
  */
 async function startWebAppServers(): Promise<void> {
-  // Use CANVAS_PLUGIN_ROOT if available (plugin mode), otherwise resolve relative to this file
-  const pluginRoot = process.env.CANVAS_PLUGIN_ROOT || path.resolve(__dirname, '../../..');
+  const pluginRoot = getPluginRoot();
   const webAppPath = path.join(pluginRoot, 'web-app');
 
   console.error('🚀 Starting web app servers...');
@@ -88,8 +90,7 @@ async function ensureServersRunning(): Promise<void> {
  * Build Electron main process if needed
  */
 async function buildElectronMain(): Promise<void> {
-  // Use CANVAS_PLUGIN_ROOT if available (plugin mode), otherwise resolve relative to this file
-  const pluginRoot = process.env.CANVAS_PLUGIN_ROOT || path.resolve(__dirname, '../../..');
+  const pluginRoot = getPluginRoot();
   const electronAppPath = path.join(pluginRoot, 'electron-app');
 
   console.error('🔨 Building Electron main process...');
@@ -103,12 +104,16 @@ async function buildElectronMain(): Promise<void> {
   }
 }
 
+interface LaunchResult {
+  ranSetup: boolean;
+}
+
 /**
  * Launch Electron app with drawing ID
  */
-async function launchElectronApp(drawingId: string): Promise<void> {
-  // Use CANVAS_PLUGIN_ROOT if available (plugin mode), otherwise resolve relative to this file
-  const pluginRoot = process.env.CANVAS_PLUGIN_ROOT || path.resolve(__dirname, '../../..');
+async function launchElectronApp(drawingId: string): Promise<LaunchResult> {
+  let ranSetup = false;
+  const pluginRoot = getPluginRoot();
   const electronAppPath = path.join(pluginRoot, 'electron-app');
   const useDevMode = process.env.EXCALIDRAW_DEV === '1';
   const mcpPid = process.pid.toString(); // Pass MCP server PID for lifecycle management
@@ -148,16 +153,21 @@ async function launchElectronApp(drawingId: string): Promise<void> {
       try {
         await fs.access(appPath);
       } catch {
-        // Fallback to npm start if packaged app not found
-        console.error('⚠️ Packaged app not found, falling back to npm start...');
-        const electronProcess = spawn('npm', ['run', 'start', drawingId, mcpPid], {
-          cwd: electronAppPath,
-          detached: true,
-          stdio: 'ignore',
-        });
-        electronProcess.unref();
-        console.error('✅ Electron app launched (unpackaged)');
-        return;
+        // Auto-run setup.sh to download the Electron app on first use
+        console.error('📦 Electron app not found. Running setup to download...');
+        const setupScript = path.join(pluginRoot, 'scripts/setup.sh');
+        try {
+          await execAsync(`bash "${setupScript}"`, { cwd: pluginRoot, timeout: 120000 });
+          console.error('✅ Setup complete, checking for app...');
+          await fs.access(appPath);
+          ranSetup = true;
+        } catch (setupError) {
+          console.error('⚠️ Auto-setup failed:', setupError instanceof Error ? setupError.message : String(setupError));
+          throw new Error(
+            'Electron app not found and auto-download failed. ' +
+            'Run setup manually: cd ' + pluginRoot + ' && ./scripts/setup.sh'
+          );
+        }
       }
 
       // Launch packaged app with drawing ID and MCP PID as arguments
@@ -178,6 +188,7 @@ async function launchElectronApp(drawingId: string): Promise<void> {
   }
 
   console.error('✅ Electron app launched');
+  return { ranSetup };
 }
 
 /**
@@ -231,7 +242,11 @@ export async function handleOpenCanvas(
   // Launch Electron app if requested
   if (launchExcalidraw) {
     try {
-      await launchElectronApp(drawing.id);
+      const { ranSetup } = await launchElectronApp(drawing.id);
+
+      const setupNote = ranSetup
+        ? `\n\n📦 **First-time setup**: Downloaded and installed the Electron app automatically.\n`
+        : '';
 
       return {
         content: [
@@ -240,7 +255,7 @@ export async function handleOpenCanvas(
             text: `${drawingId ? "Opened" : "Created"} drawing: **${drawing.name}**\n\n` +
               `ID: ${drawing.id}\n` +
               `Elements: ${drawing.elementCount}\n\n` +
-              `✅ Electron app launched!\n\n` +
+              `✅ Electron app launched!${setupNote}\n\n` +
               `The Excalidraw editor should open in a native window.\n` +
               `Changes are auto-saved to the MCP server.${sessionReminder}`,
           },
