@@ -1,0 +1,14 @@
+{
+  "name": "collaborative-canvas",
+  "version": "1.0.0",
+  "description": "Claude Code plugin for visual collaboration with Excalidraw",
+  "private": true,
+  "scripts": {
+    "setup": "./scripts/setup.sh",
+    "build": "cd mcp-server && npm run build",
+    "build:electron": "cd electron-app && npm run build && npm run package:dir",
+    "build:all": "npm run build && npm run build:electron"
+  },
+  "keywords": ["claude-code", "plugin", "excalidraw", "canvas", "diagrams"],
+  "license": "AGPL-3.0-or-later"
+}

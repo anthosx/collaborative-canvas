@@ -1,0 +1,10 @@
+{
+  "name": "collaborative-canvas",
+  "description": "AI-powered visual collaboration with Excalidraw. Create diagrams, flowcharts, and architecture sketches with Claude.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Claude Canvas Team"
+  },
+  "keywords": ["canvas", "excalidraw", "diagrams", "visual", "collaboration", "flowcharts", "architecture"],
+  "license": "AGPL-3.0-or-later"
+}

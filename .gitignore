@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+
+# Build output
+mcp-server/dist/
+electron-app/dist/
+electron-app/release/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Runtime data
+*.pid
+*.seed
+
+# Lock files (keep package-lock.json)
+yarn.lock
+pnpm-lock.yaml
+
+# Storage (user data, not repo data)
+screenshots/

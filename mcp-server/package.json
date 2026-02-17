@@ -1,0 +1,47 @@
+{
+  "name": "collaborative-canvas-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for AI-powered visual collaboration with Excalidraw",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest",
+    "test:ui": "vitest --ui",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\""
+  },
+  "keywords": [
+    "mcp",
+    "excalidraw",
+    "claude-code",
+    "visual-communication",
+    "diagrams",
+    "collaborative-canvas"
+  ],
+  "author": "Anthosx",
+  "license": "AGPL-3.0-or-later",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "proper-lockfile": "^4.1.2",
+    "uuid": "^11.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/proper-lockfile": "^4.1.4",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^8.19.1",
+    "@typescript-eslint/parser": "^8.19.1",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

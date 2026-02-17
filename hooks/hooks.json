@@ -1,0 +1,39 @@
+{
+  "description": "Collaborative Canvas workflow automation hooks",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "mcp__canvas__open_canvas",
+        "hooks": [{
+          "type": "command",
+          "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/open-canvas-choice.js",
+          "timeout": 10000
+        }]
+      },
+      {
+        "matcher": "mcp__canvas__save_canvas",
+        "hooks": [{
+          "type": "command",
+          "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/save-canvas-listen.js",
+          "timeout": 10000
+        }]
+      },
+      {
+        "matcher": "mcp__canvas__listen",
+        "hooks": [{
+          "type": "command",
+          "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/collaboration-poll.js",
+          "timeout": 1800000
+        }]
+      },
+      {
+        "matcher": "mcp__canvas__get_canvas_state",
+        "hooks": [{
+          "type": "command",
+          "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/get-canvas-state-decision.js",
+          "timeout": 10000
+        }]
+      }
+    ]
+  }
+}

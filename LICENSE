@@ -1,0 +1,32 @@
+Collaborative Canvas - Dual License
+
+Copyright (c) 2025 Collaborative Canvas Contributors
+
+This software is available under two license options:
+
+1. OPEN SOURCE LICENSE (AGPL-3.0)
+
+   For open source use, this software is licensed under the
+   GNU Affero General Public License version 3.0.
+
+   See: https://www.gnu.org/licenses/agpl-3.0.html
+
+   Full license text available at: LICENSES/AGPL-3.0.txt
+
+2. COMMERCIAL LICENSE
+
+   For commercial use without AGPL obligations, contact us for
+   a commercial license agreement.
+
+   See: LICENSE-COMMERCIAL.md
+
+---
+
+Unless you have obtained a commercial license, your use of this
+software is governed by the AGPL-3.0 license.
+
+THIRD-PARTY COMPONENTS
+
+This software incorporates Excalidraw, which is licensed under the
+MIT License. See THIRD_PARTY_NOTICES.md for full attribution and
+license text for all third-party components.

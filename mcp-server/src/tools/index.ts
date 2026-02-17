@@ -1,0 +1,11 @@
+export { handleListCanvases } from "./listCanvases.js";
+export { handleOpenCanvas } from "./openCanvas.js";
+export { handleCloseCanvas } from "./closeCanvas.js";
+export { handleSaveCanvas } from "./saveCanvas.js";
+export { handleGetCanvasState } from "./getCanvasState.js";
+export { handleUpdateCanvas } from "./updateCanvas.js";
+export { handleExportCanvas } from "./exportCanvas.js";
+export { handleDeleteCanvases } from "./deleteCanvases.js";
+export { handleListen } from "./listen.js";
+export { handleCloseWidget } from "./closeWidget.js";
+export { handleAddToCanvas } from "./addToCanvas.js";
