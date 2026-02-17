@@ -23691,6 +23691,7 @@ var import_promises2 = __toESM(require("fs/promises"), 1);
 var import_path2 = __toESM(require("path"), 1);
 var import_os = __toESM(require("os"), 1);
 var LISTEN_TIMEOUT_MS = 60 * 60 * 1e3;
+var POLL_INTERVAL_MS = 3e3;
 async function clearStaleHooksQueue(storageDir3) {
   const queuePath = import_path2.default.join(storageDir3, "hooks-queue.json");
   try {
@@ -23718,8 +23719,9 @@ async function handleListen(storage, args, updateLastAccessedCallback) {
   }
   const xdgDataHome3 = process.env.XDG_DATA_HOME || import_path2.default.join(import_os.default.homedir(), ".local", "share");
   const storageDir3 = import_path2.default.join(xdgDataHome3, "collaborative-canvas");
-  await clearStaleHooksQueue(storageDir3);
+  const queuePath = import_path2.default.join(storageDir3, "hooks-queue.json");
   const listenStatePath = import_path2.default.join(storageDir3, `listen-state-${drawingId}.json`);
+  await clearStaleHooksQueue(storageDir3);
   const listenState = {
     drawingId,
     isListening: true,
@@ -23728,25 +23730,71 @@ async function handleListen(storage, args, updateLastAccessedCallback) {
   };
   try {
     await import_promises2.default.writeFile(listenStatePath, JSON.stringify(listenState, null, 2), "utf-8");
-    console.log(`\u2705 Listen state created for ${drawingId}: expires in ${LISTEN_TIMEOUT_MS / 1e3}s`);
   } catch (error2) {
     console.error("Failed to create listen state:", error2);
   }
-  const sessionReminder = `
+  console.error(`\u{1F442} Listening for collaboration on "${drawing.name}" (${drawingId}) \u2014 polling for up to ${LISTEN_TIMEOUT_MS / 6e4} minutes`);
+  const startTime = Date.now();
+  while (Date.now() - startTime < LISTEN_TIMEOUT_MS) {
+    try {
+      const content = await import_promises2.default.readFile(queuePath, "utf-8");
+      const queue = JSON.parse(content);
+      if (Array.isArray(queue)) {
+        const matchIndex = queue.findIndex(
+          (entry) => entry.drawingId === drawingId && (entry.type === "collaborate" || entry.type === "finished")
+        );
+        if (matchIndex >= 0) {
+          const entry = queue[matchIndex];
+          queue.splice(matchIndex, 1);
+          await import_promises2.default.writeFile(queuePath, JSON.stringify(queue), "utf-8");
+          await import_promises2.default.unlink(listenStatePath).catch(() => {
+          });
+          const elapsed = ((Date.now() - startTime) / 1e3).toFixed(0);
+          console.error(`\u{1F4EC} Received "${entry.type}" after ${elapsed}s`);
+          if (entry.type === "collaborate") {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `\u{1F3A8} **Collaboration requested!** The user clicked Collaborate on "${drawing.name}".
 
-\u{1F4CD} **Active Drawing**: ${drawing.name} (ID: \`${drawingId}\`)`;
+Elements on canvas: ${entry.elementCount ?? "unknown"}
+
+**Next step**: Call \`get_canvas_state\` to review their work, then respond with feedback and/or additions via \`save_canvas\`.
+
+Drawing ID: \`${drawingId}\``
+                }
+              ]
+            };
+          } else {
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `\u2705 **Session complete!** The user clicked Finish on "${drawing.name}".
+
+**Next step**: Call \`close_widget\` to close the canvas window, then acknowledge completion.
+
+Drawing ID: \`${drawingId}\``
+                }
+              ]
+            };
+          }
+        }
+      }
+    } catch {
+    }
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+  }
+  await import_promises2.default.unlink(listenStatePath).catch(() => {
+  });
   return {
     content: [
       {
         type: "text",
-        text: `\u{1F442} Listening for collaboration on "${drawing.name}"...
+        text: `\u23F0 Listen timed out after ${LISTEN_TIMEOUT_MS / 6e4} minutes on "${drawing.name}". The user did not click Collaborate or Finish.
 
-Waiting for user to:
-- Click "Collaborate" for your feedback/additions
-- Click "Finish" when done
-
-Buttons are now active in the widget for ${LISTEN_TIMEOUT_MS / 6e4} minutes.
-Press Ctrl-C to cancel listening.${sessionReminder}`
+Drawing ID: \`${drawingId}\``
       }
     ]
   };
