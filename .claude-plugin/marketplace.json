@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "anthosx-collaborative-canvas",
+  "description": "AI-powered visual collaboration with Excalidraw for Claude Code",
+  "owner": {
+    "name": "Anthosx",
+    "email": "canvas@anthosx.com"
+  },
+  "plugins": [
+    {
+      "name": "collaborative-canvas",
+      "description": "Create diagrams, flowcharts, and architecture sketches with Claude on an infinite Excalidraw canvas.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Anthosx",
+        "email": "canvas@anthosx.com"
+      },
+      "source": "..",
+      "category": "productivity"
+    }
+  ]
+}
