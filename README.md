@@ -31,27 +31,35 @@ Simply ask Claude to start a new drawing (you can specify too what you want that
 ### Prerequisites
 
 - Node.js 18+
-- npm
+- Claude Code
 
-### Setup
+### Install from Marketplace
 
-1. Clone or download this plugin:
+```bash
+claude plugin install anthosx/collaborative-canvas --scope user
+```
+
+Restart Claude Code, then just start drawing — the Electron app downloads automatically on first use.
+
+### Install from Source
+
+1. Clone the repo:
    ```bash
    git clone https://github.com/anthosx/collaborative-canvas.git
    cd collaborative-canvas
    ```
 
-2. Run the setup script:
+2. Run setup to download the Electron app:
    ```bash
    ./scripts/setup.sh
    ```
 
-3. Install the plugin in Claude Code:
+3. Install the plugin:
    ```bash
    claude plugin install /path/to/collaborative-canvas --scope user
    ```
 
-4. Restart Claude Code to load the plugin.
+4. Restart Claude Code.
 
 ---
 
@@ -129,11 +137,14 @@ collaborative-canvas/
 ### Building
 
 ```bash
-# Build MCP server
-cd mcp-server && npm run build
+# Rebuild MCP server bundle (after changing server code)
+cd mcp-server && npm install && npm run bundle
 
-# Build Electron app
-cd electron-app && npm run build && npm run package:dir
+# Rebuild Electron app (after changing app code)
+cd electron-app && npm install && npm run build
+
+# Package Electron for release
+cd electron-app && npm run package:dir
 ```
 
 ### Development Mode
