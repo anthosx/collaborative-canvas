@@ -12,7 +12,7 @@ const __dirname = path.dirname(__filename);
 import { DrawingStorage } from './storage/DrawingStorage.js';
 
 // Set application name BEFORE app.whenReady()
-app.setName('e4c');
+app.setName('Collaborative Canvas');
 
 // Storage instance (shared with MCP server via file system)
 const storage = new DrawingStorage();
@@ -24,8 +24,8 @@ const windowManager = new WindowManager();
  * Main Electron application entry point
  */
 async function main() {
-  console.log('🎨 Excalidraw MCP Electron App');
-  console.log('================================');
+  console.log('🎨 Collaborative Canvas');
+  console.log('=======================');
 
   // Initialize storage
   await storage.initialize();
