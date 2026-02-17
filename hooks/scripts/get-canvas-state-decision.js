@@ -3,7 +3,7 @@
 /**
  * PostToolUse Hook: get_canvas_state Decision Enforcer
  *
- * Triggers after: mcp__canvas__get_canvas_state
+ * Triggers after: mcp__plugin_collaborative-canvas_canvas__get_canvas_state
  *
  * Purpose: Enforces the principle "reply IN the canvas" when visual
  * communication is needed. Forces Claude to choose:

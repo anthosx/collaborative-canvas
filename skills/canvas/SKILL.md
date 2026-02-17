@@ -2,6 +2,7 @@
 name: canvas
 description: Use when the user asks to draw diagrams, create flowcharts, sketch architecture, visualize concepts, make a canvas, open Excalidraw, or mentions visual collaboration. Provides AI-powered visual collaboration using Excalidraw.
 version: 1.0.0
+allowed-tools: [mcp__plugin_collaborative-canvas_canvas__open_canvas, mcp__plugin_collaborative-canvas_canvas__close_canvas, mcp__plugin_collaborative-canvas_canvas__list_canvases, mcp__plugin_collaborative-canvas_canvas__save_canvas, mcp__plugin_collaborative-canvas_canvas__get_canvas_state, mcp__plugin_collaborative-canvas_canvas__update_canvas, mcp__plugin_collaborative-canvas_canvas__export_canvas, mcp__plugin_collaborative-canvas_canvas__delete_canvases, mcp__plugin_collaborative-canvas_canvas__listen, mcp__plugin_collaborative-canvas_canvas__add_to_canvas, mcp__plugin_collaborative-canvas_canvas__close_widget, mcp__plugin_collaborative-canvas_canvas__capture_screenshot]
 ---
 
 # Canvas - Visual Collaboration

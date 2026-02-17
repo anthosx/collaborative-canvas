@@ -3,7 +3,31 @@ import fs from "fs/promises";
 import path from "path";
 import os from "os";
 
-const LISTEN_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes to match hook timeout
+const LISTEN_TIMEOUT_MS = 60 * 60 * 1000; // 60 minutes to match hook timeout
+
+/**
+ * Clear stale entries from hooks-queue.json before starting a new listen session.
+ * This ensures the PostToolUse poll hook starts with a clean queue and doesn't
+ * waste time filtering out entries from previous sessions.
+ */
+async function clearStaleHooksQueue(storageDir: string): Promise<void> {
+  const queuePath = path.join(storageDir, "hooks-queue.json");
+  try {
+    const content = await fs.readFile(queuePath, "utf-8");
+    const queue = JSON.parse(content);
+    if (Array.isArray(queue) && queue.length > 0) {
+      console.error(`🧹 Clearing ${queue.length} stale entry(ies) from hooks-queue.json`);
+      await fs.writeFile(queuePath, "[]", "utf-8");
+    }
+  } catch {
+    // File doesn't exist or is invalid - write empty queue
+    try {
+      await fs.writeFile(queuePath, "[]", "utf-8");
+    } catch {
+      // Non-fatal
+    }
+  }
+}
 
 /**
  * Listen for user to click Collaborate or Finish button
@@ -32,6 +56,9 @@ export async function handleListen(
   // Create per-drawing listen state file for widget to detect (XDG-compliant)
   const xdgDataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
   const storageDir = path.join(xdgDataHome, "collaborative-canvas");
+
+  // Clear stale entries from hooks-queue before starting new listen
+  await clearStaleHooksQueue(storageDir);
   const listenStatePath = path.join(storageDir, `listen-state-${drawingId}.json`);
 
   const listenState = {

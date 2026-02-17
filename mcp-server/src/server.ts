@@ -284,7 +284,7 @@ export class ExcalidrawMCPServer {
             name: "listen",
             description:
               "Wait for user to click Collaborate or Finish button in the canvas widget. Use this tool after opening a canvas to allow the user to draw, sketch, diagram, or visualize while Claude waits for their input. Triggers a polling hook that monitors for collaboration requests.\n\n" +
-              "⚠️ IMPORTANT: This tool pauses the REPL for up to 5 minutes while polling. User can press Ctrl-C at any time to cancel and resume normal chat.\n\n" +
+              "⚠️ IMPORTANT: This tool pauses the REPL for up to 60 minutes while polling. User can press Ctrl-C at any time to cancel and resume normal chat.\n\n" +
               "Button Actions:\n" +
               "- Collaborate: User wants your feedback/additions → respond with feedback AND/OR call save_canvas to add elements\n" +
               "- Finish: User is done → you should call close_widget and acknowledge completion/proceed with next steps\n\n" +

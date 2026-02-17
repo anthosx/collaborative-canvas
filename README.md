@@ -8,11 +8,11 @@
 
 ---
 
-Prefer to communicate through flowcharts or graphs? Want to sketch an idea for Claude instead of writing a prompt? Want Claude to sketch a rocket ship with your five year old?
+This tool was made for people who communicate visually. Flowcharts, graphs, and drawings can be more powerful that text alone. Want to sketch an idea for Claude instead of writing a prompt? Want Claude to draw you a rocket ship just for fun?
 
 **Collaborative Canvas** empowers you to share messages and drawings with Claude via an open Excalidraw canvas. Claude will listen for your work whenever you press **collaborate**, and then **write/draw you messages directly back on the canvas.**
 
-Simply ask Claude to start a new drawing (you can specify too what you want that drawing to be), and it'll open a new drawing session.
+Simply ask Claude to start a new drawing and you'll get a blank Canvas. Alternatively, ask Claude to draw something for you or adapt a plan into a visual schema.
 
 ---
 

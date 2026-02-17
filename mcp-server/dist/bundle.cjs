@@ -23690,7 +23690,23 @@ delete_drawings({
 var import_promises2 = __toESM(require("fs/promises"), 1);
 var import_path2 = __toESM(require("path"), 1);
 var import_os = __toESM(require("os"), 1);
-var LISTEN_TIMEOUT_MS = 30 * 60 * 1e3;
+var LISTEN_TIMEOUT_MS = 60 * 60 * 1e3;
+async function clearStaleHooksQueue(storageDir3) {
+  const queuePath = import_path2.default.join(storageDir3, "hooks-queue.json");
+  try {
+    const content = await import_promises2.default.readFile(queuePath, "utf-8");
+    const queue = JSON.parse(content);
+    if (Array.isArray(queue) && queue.length > 0) {
+      console.error(`\u{1F9F9} Clearing ${queue.length} stale entry(ies) from hooks-queue.json`);
+      await import_promises2.default.writeFile(queuePath, "[]", "utf-8");
+    }
+  } catch {
+    try {
+      await import_promises2.default.writeFile(queuePath, "[]", "utf-8");
+    } catch {
+    }
+  }
+}
 async function handleListen(storage, args, updateLastAccessedCallback) {
   const { drawingId } = args;
   if (updateLastAccessedCallback) {
@@ -23702,6 +23718,7 @@ async function handleListen(storage, args, updateLastAccessedCallback) {
   }
   const xdgDataHome3 = process.env.XDG_DATA_HOME || import_path2.default.join(import_os.default.homedir(), ".local", "share");
   const storageDir3 = import_path2.default.join(xdgDataHome3, "collaborative-canvas");
+  await clearStaleHooksQueue(storageDir3);
   const listenStatePath = import_path2.default.join(storageDir3, `listen-state-${drawingId}.json`);
   const listenState = {
     drawingId,
@@ -24618,7 +24635,7 @@ var ExcalidrawMCPServer = class {
           },
           {
             name: "listen",
-            description: "Wait for user to click Collaborate or Finish button in the canvas widget. Use this tool after opening a canvas to allow the user to draw, sketch, diagram, or visualize while Claude waits for their input. Triggers a polling hook that monitors for collaboration requests.\n\n\u26A0\uFE0F IMPORTANT: This tool pauses the REPL for up to 5 minutes while polling. User can press Ctrl-C at any time to cancel and resume normal chat.\n\nButton Actions:\n- Collaborate: User wants your feedback/additions \u2192 respond with feedback AND/OR call save_canvas to add elements\n- Finish: User is done \u2192 you should call close_widget and acknowledge completion/proceed with next steps\n\nUser Experience: REPL will appear frozen while this hook polls. This is expected - user should go to browser to draw. If user needs to chat via text instead, they can press Ctrl-C to cancel the polling.",
+            description: "Wait for user to click Collaborate or Finish button in the canvas widget. Use this tool after opening a canvas to allow the user to draw, sketch, diagram, or visualize while Claude waits for their input. Triggers a polling hook that monitors for collaboration requests.\n\n\u26A0\uFE0F IMPORTANT: This tool pauses the REPL for up to 60 minutes while polling. User can press Ctrl-C at any time to cancel and resume normal chat.\n\nButton Actions:\n- Collaborate: User wants your feedback/additions \u2192 respond with feedback AND/OR call save_canvas to add elements\n- Finish: User is done \u2192 you should call close_widget and acknowledge completion/proceed with next steps\n\nUser Experience: REPL will appear frozen while this hook polls. This is expected - user should go to browser to draw. If user needs to chat via text instead, they can press Ctrl-C to cancel the polling.",
             inputSchema: {
               type: "object",
               properties: {

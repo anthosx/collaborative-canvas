@@ -32,10 +32,10 @@ const QUEUE_FILE = path.join(STORAGE_DIR, 'hooks-queue.json');
 const DRAWINGS_DIR = path.join(STORAGE_DIR, 'drawings');
 // Note: LISTEN_STATE_FILE is now per-drawing, constructed dynamically
 
-const MAX_WAIT_MS = 30 * 60 * 1000; // 30 minutes
+const MAX_WAIT_MS = 60 * 60 * 1000; // 60 minutes
 const POLL_INTERVAL_MS = 3000; // 3 seconds
 const REQUEST_EXPIRATION_MS = 5000; // 5 seconds - expire old collaboration requests
-const STALE_REQUEST_THRESHOLD_MS = 60000; // 60 seconds - warn about very old entries (likely from previous session)
+const STALE_REQUEST_THRESHOLD_MS = 60000; // 60 seconds - entries older than this are from a previous session
 
 // CRITICAL: Read hook input from stdin FIRST
 // Claude Code expects hooks to read stdin before doing anything else
@@ -64,6 +64,16 @@ try {
 
 const startTime = Date.now();
 
+// Ensure logs directory exists
+const LOGS_DIR = path.join(STORAGE_DIR, 'logs');
+try {
+  if (!fs.existsSync(LOGS_DIR)) {
+    fs.mkdirSync(LOGS_DIR, { recursive: true });
+  }
+} catch (err) {
+  // Silently fail
+}
+
 // Logging to stderr (stdout is for JSON response only) AND file
 function log(message) {
   const timestamp = new Date().toISOString();
@@ -74,7 +84,7 @@ function log(message) {
 
   // Also append to log file for aggregation
   try {
-    const logFilePath = path.join(STORAGE_DIR, 'logs', 'hooks.log');
+    const logFilePath = path.join(LOGS_DIR, 'hooks.log');
     const logEntry = `${timestamp} ${logMessage}\n`;
     fs.appendFileSync(logFilePath, logEntry);
   } catch (err) {
@@ -249,16 +259,23 @@ async function pollForCollaboration() {
   log(`Press Ctrl-C anytime to cancel and resume chat\n`);
 
   let iterations = 0;
+  const HEARTBEAT_INTERVAL = 30; // Log heartbeat every 30 iterations (~90 seconds)
 
   while (Date.now() - startTime < MAX_WAIT_MS) {
     iterations++;
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
-    log(`Poll #${iterations} (${elapsed}s elapsed)...`);
+
+    // Log heartbeat periodically (not every 3 seconds)
+    if (iterations === 1 || iterations % HEARTBEAT_INTERVAL === 0) {
+      log(`Poll #${iterations} (${elapsed}s elapsed) - hook alive, watching ${QUEUE_FILE}`);
+    }
 
     const queue = readCollaborationQueue();
 
-    // DEBUG: Log queue contents
-    log(`  Queue contents: ${JSON.stringify(queue)}`);
+    // Only log queue contents when non-empty
+    if (queue.length > 0) {
+      log(`  Queue has ${queue.length} entries: ${JSON.stringify(queue)}`);
+    }
 
     // Validate and filter queue entries
     const now = Date.now();

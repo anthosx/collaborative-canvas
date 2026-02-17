@@ -29,7 +29,7 @@ try {
         "CRITICAL INSTRUCTION: The save_canvas tool just completed successfully.\n\n" +
         (drawingId ? `Drawing ID: ${drawingId}\n\n` : '') +
         "You MUST immediately call the 'listen' tool (no text response):\n\n" +
-        "Tool name: mcp__canvas__listen\n" +
+        "Tool name: mcp__plugin_collaborative-canvas_canvas__listen\n" +
         (drawingId ? `Explicit call: listen({ drawingId: "${drawingId}" })\n\n` : 'Required parameter: drawingId (use the same drawingId from save_canvas)\n\n') +
         "Purpose: This allows the user to:\n" +
         "- Add their own elements to the canvas\n" +

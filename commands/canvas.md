@@ -1,7 +1,7 @@
 ---
 description: Open or create a visual canvas for diagramming and collaboration
 argument-hint: [name|--list|--open <id>]
-allowed-tools: [mcp__canvas__open_canvas, mcp__canvas__list_canvases, mcp__canvas__listen]
+allowed-tools: [mcp__plugin_collaborative-canvas_canvas__open_canvas, mcp__plugin_collaborative-canvas_canvas__close_canvas, mcp__plugin_collaborative-canvas_canvas__list_canvases, mcp__plugin_collaborative-canvas_canvas__save_canvas, mcp__plugin_collaborative-canvas_canvas__get_canvas_state, mcp__plugin_collaborative-canvas_canvas__update_canvas, mcp__plugin_collaborative-canvas_canvas__export_canvas, mcp__plugin_collaborative-canvas_canvas__delete_canvases, mcp__plugin_collaborative-canvas_canvas__listen, mcp__plugin_collaborative-canvas_canvas__add_to_canvas, mcp__plugin_collaborative-canvas_canvas__close_widget, mcp__plugin_collaborative-canvas_canvas__capture_screenshot]
 ---
 
 # Canvas Command
@@ -15,18 +15,18 @@ $ARGUMENTS
 ## Instructions
 
 1. **If arguments contain `--list`**:
-   - Call `mcp__canvas__list_canvases` to show all saved drawings
+   - Call `mcp__plugin_collaborative-canvas_canvas__list_canvases` to show all saved drawings
    - Display results in a formatted table with ID, name, and element count
 
 2. **If arguments contain `--open <id>`**:
    - Extract the drawing ID from arguments
-   - Call `mcp__canvas__open_canvas` with `drawingId` parameter
-   - After canvas opens, immediately call `mcp__canvas__listen` to wait for user
+   - Call `mcp__plugin_collaborative-canvas_canvas__open_canvas` with `drawingId` parameter
+   - After canvas opens, immediately call `mcp__plugin_collaborative-canvas_canvas__listen` to wait for user
 
 3. **Otherwise (default - create new)**:
    - Use arguments as the canvas name (or "Untitled Canvas" if empty)
-   - Call `mcp__canvas__open_canvas` with `name` parameter
-   - After canvas opens, immediately call `mcp__canvas__listen` to wait for user
+   - Call `mcp__plugin_collaborative-canvas_canvas__open_canvas` with `name` parameter
+   - After canvas opens, immediately call `mcp__plugin_collaborative-canvas_canvas__listen` to wait for user
 
 ## Examples
 

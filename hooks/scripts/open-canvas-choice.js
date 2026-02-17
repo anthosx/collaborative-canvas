@@ -39,11 +39,11 @@ try {
         "You MUST immediately make ONE tool call (no text response):\n\n" +
         "Option 1: Call the 'listen' tool if the user will draw/edit\n" +
         "   - Use this for new canvases where user creates content\n" +
-        "   - Tool name: mcp__canvas__listen\n" +
+        "   - Tool name: mcp__plugin_collaborative-canvas_canvas__listen\n" +
         (drawingId ? `   - Explicit call: listen({ drawingId: "${drawingId}" })\n\n` : '   - Required parameter: drawingId\n\n') +
         "Option 2: Call the 'save_canvas' tool if you want to add elements\n" +
         "   - Use this when you're creating diagram content for the user\n" +
-        "   - Tool name: mcp__canvas__save_canvas\n" +
+        "   - Tool name: mcp__plugin_collaborative-canvas_canvas__save_canvas\n" +
         (drawingId ? `   - Explicit call: save_canvas({ drawingId: "${drawingId}", elements: [...] })\n\n` : '   - Required parameters: drawingId, elements\n\n') +
         (drawingId ? `IMPORTANT: Use the explicit drawing ID "${drawingId}" to ensure you're working with THIS canvas.\n\n` : '') +
         "DO NOT respond with any text. Make the tool call immediately."

@@ -3,7 +3,7 @@
   "hooks": {
     "PostToolUse": [
       {
-        "matcher": "mcp__canvas__open_canvas",
+        "matcher": "mcp__plugin_collaborative-canvas_canvas__open_canvas",
         "hooks": [{
           "type": "command",
           "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/open-canvas-choice.js",
@@ -11,7 +11,7 @@
         }]
       },
       {
-        "matcher": "mcp__canvas__save_canvas",
+        "matcher": "mcp__plugin_collaborative-canvas_canvas__save_canvas",
         "hooks": [{
           "type": "command",
           "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/save-canvas-listen.js",
@@ -19,15 +19,16 @@
         }]
       },
       {
-        "matcher": "mcp__canvas__listen",
+        "matcher": "mcp__plugin_collaborative-canvas_canvas__listen",
         "hooks": [{
           "type": "command",
           "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/collaboration-poll.js",
-          "timeout": 1800000
+          "timeout": 3600000,
+          "statusMessage": "Waiting for canvas collaboration..."
         }]
       },
       {
-        "matcher": "mcp__canvas__get_canvas_state",
+        "matcher": "mcp__plugin_collaborative-canvas_canvas__get_canvas_state",
         "hooks": [{
           "type": "command",
           "command": "node ${CLAUDE_PLUGIN_ROOT}/hooks/scripts/get-canvas-state-decision.js",
