@@ -25046,6 +25046,11 @@ var ExcalidrawMCPServer = class {
 };
 
 // src/index.ts
+var major = parseInt(process.versions.node.split(".")[0], 10);
+if (major < 18) {
+  console.error(`Collaborative Canvas requires Node.js 18+ (found ${process.version})`);
+  process.exit(1);
+}
 async function main() {
   const server = new ExcalidrawMCPServer();
   await server.start();
