@@ -154,6 +154,44 @@ fi
 
 echo -e "  ${GREEN}✓${NC} Extracted to $DEST_DIR"
 
+# Step 5: Pre-approve MCP tool permissions
+echo ""
+echo -e "${BLUE}━━━ Configuring tool permissions${NC}"
+SETTINGS_FILE="$HOME/.claude/settings.json"
+TOOL_RULE="mcp__plugin_collaborative-canvas_canvas__*"
+
+if [ -f "$SETTINGS_FILE" ]; then
+    # Check if the rule already exists
+    if node -e "
+      const s = require('$SETTINGS_FILE');
+      const allow = s.permissions?.allow || [];
+      process.exit(allow.some(r => r === '$TOOL_RULE') ? 0 : 1);
+    " 2>/dev/null; then
+        echo -e "  ${GREEN}✓${NC} Tool permissions already configured"
+    else
+        # Inject the rule into permissions.allow using Node.js for safe JSON manipulation
+        if node -e "
+          const fs = require('fs');
+          const p = '$SETTINGS_FILE';
+          const s = JSON.parse(fs.readFileSync(p, 'utf-8'));
+          if (!s.permissions) s.permissions = {};
+          if (!s.permissions.allow) s.permissions.allow = [];
+          s.permissions.allow.push('$TOOL_RULE');
+          fs.writeFileSync(p, JSON.stringify(s, null, 2) + '\n');
+        " 2>/dev/null; then
+            echo -e "  ${GREEN}✓${NC} Added tool pre-approval to settings"
+        else
+            echo -e "  ${YELLOW}⚠${NC} Could not auto-configure permissions"
+            echo -e "  Add this to ~/.claude/settings.json permissions.allow:"
+            echo -e "  ${BOLD}\"$TOOL_RULE\"${NC}"
+        fi
+    fi
+else
+    echo -e "  ${YELLOW}⚠${NC} ~/.claude/settings.json not found"
+    echo -e "  After first Claude Code launch, add to permissions.allow:"
+    echo -e "  ${BOLD}\"$TOOL_RULE\"${NC}"
+fi
+
 # Done
 echo ""
 echo -e "${BOLD}${GREEN}╔════════════════════════════════════════════════════════════╗${NC}"
