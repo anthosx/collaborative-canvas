@@ -280,7 +280,10 @@ export class DrawingStorage {
   }
 
   /**
-   * Ensure all required directories exist
+   * Ensure all required directories and files exist.
+   * This is the self-healing entry point — if storage was never
+   * initialized (fresh install), this creates everything the MCP
+   * server and Electron app need so neither process crashes.
    */
   private async ensureDirectories(): Promise<void> {
     const dirs = [
@@ -288,10 +291,26 @@ export class DrawingStorage {
       path.join(this.baseDir, "drawings"),
       path.join(this.baseDir, "exports"),
       path.join(this.baseDir, "thumbnails"),
+      path.join(this.baseDir, "logs"),
+      path.join(this.baseDir, "screenshots"),
     ];
 
     for (const dir of dirs) {
       await fs.mkdir(dir, { recursive: true });
+    }
+
+    // Ensure queue files exist (prevents fs.watch ENOENT crash)
+    const queueFiles = [
+      path.join(this.baseDir, "collaboration-queue.json"),
+      path.join(this.baseDir, "hooks-queue.json"),
+    ];
+
+    for (const file of queueFiles) {
+      try {
+        await fs.access(file);
+      } catch {
+        await fs.writeFile(file, "[]", "utf-8");
+      }
     }
   }
 

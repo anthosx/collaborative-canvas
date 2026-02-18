@@ -45,12 +45,19 @@ if [ "$NODE_MAJOR" -lt 18 ]; then
 fi
 echo -e "  Node.js: ${GREEN}$(node --version)${NC}"
 
-# Step 1: Create XDG storage directory
+# Step 1: Create XDG storage directory and queue files
 echo ""
 echo -e "${BLUE}━━━ Creating storage directory${NC}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 STORAGE_DIR="$XDG_DATA_HOME/collaborative-canvas"
-mkdir -p "$STORAGE_DIR/drawings"
+mkdir -p "$STORAGE_DIR/drawings" "$STORAGE_DIR/logs" "$STORAGE_DIR/screenshots" "$STORAGE_DIR/exports" "$STORAGE_DIR/thumbnails"
+
+# Ensure queue files exist (prevents MCP server crash on first launch)
+for QUEUE_FILE in "collaboration-queue.json" "hooks-queue.json"; do
+    if [ ! -f "$STORAGE_DIR/$QUEUE_FILE" ]; then
+        echo '[]' > "$STORAGE_DIR/$QUEUE_FILE"
+    fi
+done
 echo -e "  ${GREEN}✓${NC} $STORAGE_DIR"
 
 # Step 2: Detect platform and architecture
@@ -90,23 +97,40 @@ echo -e "${BLUE}━━━ Downloading Electron app ($VERSION)${NC}"
 
 mkdir -p "$DEST_DIR"
 TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
+# Clean up temp dir on exit (using rm is fine for temp dirs we just created)
+cleanup() { [ -d "$TMPDIR" ] && rm -rf "$TMPDIR"; }
+trap cleanup EXIT
+
+DOWNLOAD_OK=false
 
 if command -v gh &> /dev/null; then
     echo "  Using GitHub CLI..."
-    gh release download "$VERSION" --repo "$REPO" --pattern "$ASSET" --dir "$TMPDIR" 2>&1 || {
-        echo -e "${RED}Failed to download from GitHub Releases.${NC}"
-        echo -e "Make sure release ${BOLD}$VERSION${NC} exists at: https://github.com/$REPO/releases"
-        exit 1
-    }
+    if gh release download "$VERSION" --repo "$REPO" --pattern "$ASSET" --dir "$TMPDIR" 2>&1; then
+        DOWNLOAD_OK=true
+    fi
 else
     echo "  Using curl..."
     DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/$ASSET"
-    curl -fSL "$DOWNLOAD_URL" -o "$TMPDIR/$ASSET" 2>&1 || {
-        echo -e "${RED}Failed to download: $DOWNLOAD_URL${NC}"
-        echo -e "Make sure release ${BOLD}$VERSION${NC} exists at: https://github.com/$REPO/releases"
-        exit 1
-    }
+    if curl -fSL "$DOWNLOAD_URL" -o "$TMPDIR/$ASSET" 2>&1; then
+        DOWNLOAD_OK=true
+    fi
+fi
+
+if [ "$DOWNLOAD_OK" = false ]; then
+    echo ""
+    echo -e "${RED}Could not download: ${BOLD}$ASSET${NC}"
+    echo -e "${YELLOW}The release may not include a build for your platform ($PLATFORM $ARCH).${NC}"
+    echo ""
+    echo -e "Available assets at: https://github.com/$REPO/releases/tag/$VERSION"
+    echo ""
+    echo -e "${BLUE}To build from source instead:${NC}"
+    echo -e "  cd $PLUGIN_DIR/electron-app"
+    echo -e "  npm install"
+    echo -e "  npm run build"
+    echo -e "  npx electron-builder --dir"
+    echo -e "  # Then move the app to: $DEST_DIR/"
+    echo ""
+    exit 1
 fi
 
 echo -e "  ${GREEN}✓${NC} Downloaded $ASSET"

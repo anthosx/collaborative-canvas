@@ -22504,17 +22504,33 @@ var DrawingStorage = class _DrawingStorage {
     await import_promises.default.writeFile(metaPath, JSON.stringify(metadata, null, 2));
   }
   /**
-   * Ensure all required directories exist
+   * Ensure all required directories and files exist.
+   * This is the self-healing entry point — if storage was never
+   * initialized (fresh install), this creates everything the MCP
+   * server and Electron app need so neither process crashes.
    */
   async ensureDirectories() {
     const dirs = [
       this.baseDir,
       import_path.default.join(this.baseDir, "drawings"),
       import_path.default.join(this.baseDir, "exports"),
-      import_path.default.join(this.baseDir, "thumbnails")
+      import_path.default.join(this.baseDir, "thumbnails"),
+      import_path.default.join(this.baseDir, "logs"),
+      import_path.default.join(this.baseDir, "screenshots")
     ];
     for (const dir of dirs) {
       await import_promises.default.mkdir(dir, { recursive: true });
+    }
+    const queueFiles = [
+      import_path.default.join(this.baseDir, "collaboration-queue.json"),
+      import_path.default.join(this.baseDir, "hooks-queue.json")
+    ];
+    for (const file2 of queueFiles) {
+      try {
+        await import_promises.default.access(file2);
+      } catch {
+        await import_promises.default.writeFile(file2, "[]", "utf-8");
+      }
     }
   }
   /**
@@ -22861,6 +22877,41 @@ async function buildElectronMain() {
     throw error2;
   }
 }
+async function findElectronApp(electronAppPath) {
+  const fsP = await import("fs/promises");
+  const platform = process.platform;
+  const arch = process.arch;
+  let candidates = [];
+  if (platform === "darwin") {
+    const appName = "Collaborative Canvas.app";
+    candidates = [
+      path2.join(electronAppPath, "release/mac", appName),
+      path2.join(electronAppPath, `release/mac-${arch}`, appName),
+      path2.join(electronAppPath, "release/mac-arm64", appName),
+      path2.join(electronAppPath, "release/mac-x64", appName)
+    ];
+  } else if (platform === "linux") {
+    candidates = [
+      path2.join(electronAppPath, "release/linux-unpacked/collaborative-canvas"),
+      path2.join(electronAppPath, "release/linux-unpacked/Collaborative Canvas")
+    ];
+  } else if (platform === "win32") {
+    candidates = [
+      path2.join(electronAppPath, "release/win-unpacked/Collaborative Canvas.exe")
+    ];
+  }
+  const seen = /* @__PURE__ */ new Set();
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    try {
+      await fsP.access(candidate);
+      return candidate;
+    } catch {
+    }
+  }
+  return null;
+}
 async function launchElectronApp(drawingId) {
   let ranSetup = false;
   const pluginRoot = getPluginRoot();
@@ -22873,9 +22924,9 @@ async function launchElectronApp(drawingId) {
   console.error(`\u{1F517} MCP PID: ${mcpPid} (Electron will auto-close when this dies)`);
   if (useDevMode) {
     const electronMainPath = path2.join(electronAppPath, "dist/main/main/main.js");
-    const fs6 = await import("fs/promises");
+    const fsP = await import("fs/promises");
     try {
-      await fs6.access(electronMainPath);
+      await fsP.access(electronMainPath);
     } catch {
       console.error("\u26A0\uFE0F Electron main not found, building...");
       await buildElectronMain();
@@ -22888,33 +22939,34 @@ async function launchElectronApp(drawingId) {
     electronProcess.unref();
   } else {
     const platform = process.platform;
-    if (platform === "darwin") {
-      const appPath = path2.join(electronAppPath, "release/mac/Collaborative Canvas.app");
-      const fs6 = await import("fs/promises");
+    let appPath = await findElectronApp(electronAppPath);
+    if (!appPath) {
+      console.error("\u{1F4E6} Electron app not found. Running setup to download...");
+      const setupScript = platform === "win32" ? path2.join(pluginRoot, "scripts/setup.ps1") : path2.join(pluginRoot, "scripts/setup.sh");
+      const setupCmd = platform === "win32" ? `powershell -ExecutionPolicy Bypass -File "${setupScript}"` : `bash "${setupScript}"`;
       try {
-        await fs6.access(appPath);
-      } catch {
-        console.error("\u{1F4E6} Electron app not found. Running setup to download...");
-        const setupScript = path2.join(pluginRoot, "scripts/setup.sh");
-        try {
-          await execAsync(`bash "${setupScript}"`, { cwd: pluginRoot, timeout: 12e4 });
-          console.error("\u2705 Setup complete, checking for app...");
-          await fs6.access(appPath);
-          ranSetup = true;
-        } catch (setupError) {
-          console.error("\u26A0\uFE0F Auto-setup failed:", setupError instanceof Error ? setupError.message : String(setupError));
-          throw new Error(
-            "Electron app not found and auto-download failed. Run setup manually: cd " + pluginRoot + " && ./scripts/setup.sh"
-          );
+        await execAsync(setupCmd, { cwd: pluginRoot, timeout: 12e4 });
+        console.error("\u2705 Setup complete, checking for app...");
+        appPath = await findElectronApp(electronAppPath);
+        if (!appPath) {
+          throw new Error("App not found after setup");
         }
+        ranSetup = true;
+      } catch (setupError) {
+        console.error("\u26A0\uFE0F Auto-setup failed:", setupError instanceof Error ? setupError.message : String(setupError));
+        throw new Error(
+          "Electron app not found and auto-download failed. Run setup manually: cd " + pluginRoot + " && ./scripts/setup.sh"
+        );
       }
+    }
+    if (platform === "darwin") {
       const electronProcess = (0, import_child_process.spawn)("open", ["-a", appPath, "--args", drawingId, mcpPid], {
         detached: true,
         stdio: "ignore"
       });
       electronProcess.unref();
     } else {
-      const electronProcess = (0, import_child_process.spawn)("npm", ["run", "start", drawingId, mcpPid], {
+      const electronProcess = (0, import_child_process.spawn)(appPath, [drawingId, mcpPid], {
         cwd: electronAppPath,
         detached: true,
         stdio: "ignore"
@@ -24982,16 +25034,22 @@ var ExcalidrawMCPServer = class {
       this.storage.getBaseDir(),
       "collaboration-queue.json"
     );
-    import_fs3.default.watch(queuePath, { persistent: false }, async (eventType) => {
-      if (eventType === "change" || eventType === "rename") {
-        console.error("\u{1F4E5} Collaboration queue changed, processing requests...");
-        await this.handleCollaborationRequests();
-      }
-    });
+    if (!import_fs3.default.existsSync(queuePath)) {
+      import_fs3.default.writeFileSync(queuePath, "[]", "utf-8");
+    }
+    try {
+      import_fs3.default.watch(queuePath, { persistent: false }, async (eventType) => {
+        if (eventType === "change" || eventType === "rename") {
+          await this.handleCollaborationRequests();
+        }
+      });
+      console.error(`\u{1F440} Watching for collaboration requests at: ${queuePath}`);
+    } catch (watchError) {
+      console.error(`\u26A0\uFE0F Could not watch collaboration queue (non-fatal):`, watchError);
+    }
     setInterval(async () => {
       await this.handleCollaborationRequests();
     }, 2e3);
-    console.error(`\u{1F440} Watching for collaboration requests at: ${queuePath}`);
     console.error(`\u23F1\uFE0F  Polling for retries every 2 seconds`);
     const transport = new StdioServerTransport();
     await this.server.connect(transport);

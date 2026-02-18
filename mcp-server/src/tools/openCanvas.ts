@@ -109,6 +109,54 @@ interface LaunchResult {
 }
 
 /**
+ * Find the packaged Electron app for the current platform/architecture.
+ * Checks multiple candidate paths to handle different electron-builder output dirs.
+ */
+async function findElectronApp(electronAppPath: string): Promise<string | null> {
+  const fsP = await import('fs/promises');
+  const platform = process.platform;
+  const arch = process.arch; // 'arm64', 'x64', etc.
+
+  let candidates: string[] = [];
+
+  if (platform === 'darwin') {
+    const appName = 'Collaborative Canvas.app';
+    // Check the canonical path first (setup.sh always extracts here),
+    // then arch-specific paths (electron-builder output)
+    candidates = [
+      path.join(electronAppPath, 'release/mac', appName),
+      path.join(electronAppPath, `release/mac-${arch}`, appName),
+      path.join(electronAppPath, 'release/mac-arm64', appName),
+      path.join(electronAppPath, 'release/mac-x64', appName),
+    ];
+  } else if (platform === 'linux') {
+    candidates = [
+      path.join(electronAppPath, 'release/linux-unpacked/collaborative-canvas'),
+      path.join(electronAppPath, 'release/linux-unpacked/Collaborative Canvas'),
+    ];
+  } else if (platform === 'win32') {
+    candidates = [
+      path.join(electronAppPath, 'release/win-unpacked/Collaborative Canvas.exe'),
+    ];
+  }
+
+  // Deduplicate
+  const seen = new Set<string>();
+  for (const candidate of candidates) {
+    if (seen.has(candidate)) continue;
+    seen.add(candidate);
+    try {
+      await fsP.access(candidate);
+      return candidate;
+    } catch {
+      // Not found, try next
+    }
+  }
+
+  return null;
+}
+
+/**
  * Launch Electron app with drawing ID
  */
 async function launchElectronApp(drawingId: string): Promise<LaunchResult> {
@@ -126,9 +174,9 @@ async function launchElectronApp(drawingId: string): Promise<LaunchResult> {
   if (useDevMode) {
     // Development mode: run electron . with NODE_ENV=development
     const electronMainPath = path.join(electronAppPath, 'dist/main/main/main.js');
-    const fs = await import('fs/promises');
+    const fsP = await import('fs/promises');
     try {
-      await fs.access(electronMainPath);
+      await fsP.access(electronMainPath);
     } catch {
       console.error('⚠️ Electron main not found, building...');
       await buildElectronMain();
@@ -141,44 +189,47 @@ async function launchElectronApp(drawingId: string): Promise<LaunchResult> {
     });
     electronProcess.unref();
   } else {
-    // Production mode: launch packaged .app bundle (macOS)
-    // This ensures proper app name in menu bar and dock
+    // Production mode: launch packaged app binary
     const platform = process.platform;
+    let appPath = await findElectronApp(electronAppPath);
 
-    if (platform === 'darwin') {
-      // macOS: use 'open' command with packaged app
-      const appPath = path.join(electronAppPath, 'release/mac/Collaborative Canvas.app');
-      const fs = await import('fs/promises');
+    if (!appPath) {
+      // Auto-run setup script to download on first use
+      console.error('📦 Electron app not found. Running setup to download...');
+      const setupScript = platform === 'win32'
+        ? path.join(pluginRoot, 'scripts/setup.ps1')
+        : path.join(pluginRoot, 'scripts/setup.sh');
+      const setupCmd = platform === 'win32'
+        ? `powershell -ExecutionPolicy Bypass -File "${setupScript}"`
+        : `bash "${setupScript}"`;
 
       try {
-        await fs.access(appPath);
-      } catch {
-        // Auto-run setup.sh to download the Electron app on first use
-        console.error('📦 Electron app not found. Running setup to download...');
-        const setupScript = path.join(pluginRoot, 'scripts/setup.sh');
-        try {
-          await execAsync(`bash "${setupScript}"`, { cwd: pluginRoot, timeout: 120000 });
-          console.error('✅ Setup complete, checking for app...');
-          await fs.access(appPath);
-          ranSetup = true;
-        } catch (setupError) {
-          console.error('⚠️ Auto-setup failed:', setupError instanceof Error ? setupError.message : String(setupError));
-          throw new Error(
-            'Electron app not found and auto-download failed. ' +
-            'Run setup manually: cd ' + pluginRoot + ' && ./scripts/setup.sh'
-          );
+        await execAsync(setupCmd, { cwd: pluginRoot, timeout: 120000 });
+        console.error('✅ Setup complete, checking for app...');
+        appPath = await findElectronApp(electronAppPath);
+        if (!appPath) {
+          throw new Error('App not found after setup');
         }
+        ranSetup = true;
+      } catch (setupError) {
+        console.error('⚠️ Auto-setup failed:', setupError instanceof Error ? setupError.message : String(setupError));
+        throw new Error(
+          'Electron app not found and auto-download failed. ' +
+          'Run setup manually: cd ' + pluginRoot + ' && ./scripts/setup.sh'
+        );
       }
+    }
 
-      // Launch packaged app with drawing ID and MCP PID as arguments
+    if (platform === 'darwin') {
+      // macOS: use 'open' command with packaged .app
       const electronProcess = spawn('open', ['-a', appPath, '--args', drawingId, mcpPid], {
         detached: true,
         stdio: 'ignore',
       });
       electronProcess.unref();
     } else {
-      // Windows/Linux: fall back to npm start for now
-      const electronProcess = spawn('npm', ['run', 'start', drawingId, mcpPid], {
+      // Linux/Windows: launch binary directly
+      const electronProcess = spawn(appPath, [drawingId, mcpPid], {
         cwd: electronAppPath,
         detached: true,
         stdio: 'ignore',

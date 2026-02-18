@@ -617,7 +617,7 @@ export class ExcalidrawMCPServer {
    * Initialize and start the server
    */
   async start(): Promise<void> {
-    // Initialize storage
+    // Initialize storage (self-healing: creates dirs + queue files if missing)
     await this.storage.initialize();
 
     // Initialize collaboration manager (detect client environment)
@@ -629,20 +629,27 @@ export class ExcalidrawMCPServer {
       "collaboration-queue.json"
     );
 
-    // Watch for changes to the collaboration queue (new requests)
-    fs.watch(queuePath, { persistent: false }, async (eventType) => {
-      if (eventType === "change" || eventType === "rename") {
-        console.error("📥 Collaboration queue changed, processing requests...");
-        await this.handleCollaborationRequests();
-      }
-    });
+    // Ensure queue file exists before watching (prevents ENOENT crash)
+    if (!fs.existsSync(queuePath)) {
+      fs.writeFileSync(queuePath, "[]", "utf-8");
+    }
+
+    // Watch for changes — wrapped in try/catch so server never crashes on startup
+    try {
+      fs.watch(queuePath, { persistent: false }, async (eventType) => {
+        if (eventType === "change" || eventType === "rename") {
+          await this.handleCollaborationRequests();
+        }
+      });
+      console.error(`👀 Watching for collaboration requests at: ${queuePath}`);
+    } catch (watchError) {
+      console.error(`⚠️ Could not watch collaboration queue (non-fatal):`, watchError);
+    }
 
     // Poll for pending retries every 2 seconds
     setInterval(async () => {
       await this.handleCollaborationRequests();
     }, 2000);
-
-    console.error(`👀 Watching for collaboration requests at: ${queuePath}`);
     console.error(`⏱️  Polling for retries every 2 seconds`);
 
     // Connect to Claude Code via stdio

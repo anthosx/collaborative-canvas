@@ -206,14 +206,10 @@ Electron IPC: writeToHooksQueue()
     └── { drawingId, elementCount, timestamp, type: 'collaborate' }
     │
     ▼
-collaboration-poll.js (polling every 3 seconds)
+MCP listen tool (polling every 3 seconds internally)
     ├── Detects request in queue
-    ├── Validates listen-state file exists
-    ├── Atomically removes request from queue
-    └── Returns additionalContext with instruction
-    │
-    ▼
-Claude receives: "CRITICAL INSTRUCTION: Call get_canvas_state..."
+    ├── Removes request from queue
+    └── Returns tool result with next-step instructions
     │
     ▼
 Claude calls get_canvas_state({ drawingId: "..." })
@@ -290,7 +286,7 @@ Window closes gracefully
 | `update_canvas` | Update metadata (name, tags) |
 | `list_canvases` | List all drawings with filtering |
 | `delete_canvases` | Two-step delete with preview |
-| `listen` | Wait for Collaborate/Finish buttons |
+| `listen` | **Blocking** - polls hooks-queue.json until Collaborate/Finish |
 | `close_widget` | Close Electron window |
 | `capture_screenshot` | Capture canvas as PNG |
 | `export_canvas` | Export (placeholder for Phase 3) |
@@ -311,10 +307,9 @@ Window closes gracefully
 {
   "hooks": {
     "PostToolUse": [
-      { "matcher": "mcp__canvas__open_canvas", "hooks": [...] },
-      { "matcher": "mcp__canvas__save_canvas", "hooks": [...] },
-      { "matcher": "mcp__canvas__listen", "hooks": [...] },
-      { "matcher": "mcp__canvas__get_canvas_state", "hooks": [...] }
+      { "matcher": "mcp__plugin_collaborative-canvas_canvas__open_canvas", "hooks": [...] },
+      { "matcher": "mcp__plugin_collaborative-canvas_canvas__save_canvas", "hooks": [...] },
+      { "matcher": "mcp__plugin_collaborative-canvas_canvas__get_canvas_state", "hooks": [...] }
     ]
   }
 }
@@ -326,18 +321,22 @@ Window closes gracefully
 |--------|---------|---------|---------|
 | `open-canvas-choice.js` | After open_canvas | 10s | Force listen/save decision |
 | `save-canvas-listen.js` | After save_canvas | 10s | Auto-trigger listen |
-| `collaboration-poll.js` | After listen | 30 min | Poll for button clicks |
 | `get-canvas-state-decision.js` | After get_canvas_state | 10s | Force close/save decision |
+
+> **Note**: Collaboration polling is handled by the MCP `listen` tool itself (not a hook).
+> PostToolUse hooks are non-blocking in Claude Code — they run briefly and return.
+> Long-running blocking must happen inside the MCP tool call.
 
 ## Key Design Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Storage path | `~/.local/share/collaborative-canvas/` | XDG compliance, Electron standard |
-| MCP server name | `canvas` | Short tool prefixes (`mcp__canvas__*`) |
+| MCP server name | `canvas` | Plugin tool prefix: `mcp__plugin_collaborative-canvas_canvas__*` |
 | Direct hook queue | Electron writes to hooks-queue.json | Avoids race conditions with multiple MCP instances |
 | Compact JSON | ~4.9x compression | Prevents token limit issues |
-| Listen timeout | 30 minutes | Long collaboration sessions |
+| Listen timeout | 60 minutes | Long collaboration sessions |
+| Listen blocking | MCP tool polls internally | PostToolUse hooks are non-blocking; MCP tool calls block |
 | File locking | proper-lockfile | Atomic queue operations |
 | Distribution | Pre-bundled MCP + GitHub Release Electron | Zero-build install, auto-downloads .app on first use |
 | MCP bundling | esbuild → single CJS file | No node_modules needed at runtime (828KB) |
