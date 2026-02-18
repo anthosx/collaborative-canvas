@@ -54,9 +54,16 @@ export async function handleListen(
     throw new Error(`Drawing ${drawingId} not found`);
   }
 
-  // Setup paths
-  const xdgDataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
-  const storageDir = path.join(xdgDataHome, "collaborative-canvas");
+  // Setup paths — platform-aware
+  let storageDir: string;
+  if (process.platform === "win32") {
+    const localAppData = process.env.LOCALAPPDATA
+      || path.join(os.homedir(), "AppData", "Local");
+    storageDir = path.join(localAppData, "collaborative-canvas");
+  } else {
+    const xdgDataHome = process.env.XDG_DATA_HOME || path.join(os.homedir(), ".local", "share");
+    storageDir = path.join(xdgDataHome, "collaborative-canvas");
+  }
   const queuePath = path.join(storageDir, "hooks-queue.json");
   const listenStatePath = path.join(storageDir, `listen-state-${drawingId}.json`);
 

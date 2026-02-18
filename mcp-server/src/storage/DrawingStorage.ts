@@ -4,6 +4,7 @@
 
 import fs from "fs/promises";
 import path from "path";
+import os from "os";
 import { v4 as uuidv4 } from "uuid";
 import lockfile from "proper-lockfile";
 import type {
@@ -28,13 +29,18 @@ export class DrawingStorage {
   }
 
   constructor() {
-    // XDG-compliant storage path
-    const homeDir = process.env.HOME || process.env.USERPROFILE;
-    if (!homeDir) {
-      throw new Error("Could not determine home directory");
+    // Platform-aware storage path
+    if (process.platform === "win32") {
+      // Windows: use LOCALAPPDATA (e.g. C:\Users\<user>\AppData\Local)
+      const localAppData = process.env.LOCALAPPDATA
+        || path.join(process.env.USERPROFILE || os.homedir(), "AppData", "Local");
+      this.baseDir = path.join(localAppData, "collaborative-canvas");
+    } else {
+      // macOS / Linux / WSL: use XDG_DATA_HOME
+      const xdgDataHome = process.env.XDG_DATA_HOME
+        || path.join(os.homedir(), ".local", "share");
+      this.baseDir = path.join(xdgDataHome, "collaborative-canvas");
     }
-    const xdgDataHome = process.env.XDG_DATA_HOME || path.join(homeDir, ".local", "share");
-    this.baseDir = path.join(xdgDataHome, "collaborative-canvas");
   }
 
   /**

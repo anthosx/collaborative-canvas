@@ -22233,6 +22233,7 @@ var StdioServerTransport = class {
 // src/storage/DrawingStorage.ts
 var import_promises = __toESM(require("fs/promises"), 1);
 var import_path = __toESM(require("path"), 1);
+var import_os = __toESM(require("os"), 1);
 
 // node_modules/uuid/dist/esm/stringify.js
 var byteToHex = [];
@@ -22297,12 +22298,13 @@ var DrawingStorage = class _DrawingStorage {
     }
   }
   constructor() {
-    const homeDir = process.env.HOME || process.env.USERPROFILE;
-    if (!homeDir) {
-      throw new Error("Could not determine home directory");
+    if (process.platform === "win32") {
+      const localAppData = process.env.LOCALAPPDATA || import_path.default.join(process.env.USERPROFILE || import_os.default.homedir(), "AppData", "Local");
+      this.baseDir = import_path.default.join(localAppData, "collaborative-canvas");
+    } else {
+      const xdgDataHome3 = process.env.XDG_DATA_HOME || import_path.default.join(import_os.default.homedir(), ".local", "share");
+      this.baseDir = import_path.default.join(xdgDataHome3, "collaborative-canvas");
     }
-    const xdgDataHome3 = process.env.XDG_DATA_HOME || import_path.default.join(homeDir, ".local", "share");
-    this.baseDir = import_path.default.join(xdgDataHome3, "collaborative-canvas");
   }
   /**
    * Initialize storage directories
@@ -23741,7 +23743,7 @@ delete_drawings({
 // src/tools/listen.ts
 var import_promises2 = __toESM(require("fs/promises"), 1);
 var import_path2 = __toESM(require("path"), 1);
-var import_os = __toESM(require("os"), 1);
+var import_os2 = __toESM(require("os"), 1);
 var LISTEN_TIMEOUT_MS = 60 * 60 * 1e3;
 var POLL_INTERVAL_MS = 3e3;
 async function clearStaleHooksQueue(storageDir3) {
@@ -23769,8 +23771,14 @@ async function handleListen(storage, args, updateLastAccessedCallback) {
   if (!drawing) {
     throw new Error(`Drawing ${drawingId} not found`);
   }
-  const xdgDataHome3 = process.env.XDG_DATA_HOME || import_path2.default.join(import_os.default.homedir(), ".local", "share");
-  const storageDir3 = import_path2.default.join(xdgDataHome3, "collaborative-canvas");
+  let storageDir3;
+  if (process.platform === "win32") {
+    const localAppData = process.env.LOCALAPPDATA || import_path2.default.join(import_os2.default.homedir(), "AppData", "Local");
+    storageDir3 = import_path2.default.join(localAppData, "collaborative-canvas");
+  } else {
+    const xdgDataHome3 = process.env.XDG_DATA_HOME || import_path2.default.join(import_os2.default.homedir(), ".local", "share");
+    storageDir3 = import_path2.default.join(xdgDataHome3, "collaborative-canvas");
+  }
   const queuePath = import_path2.default.join(storageDir3, "hooks-queue.json");
   const listenStatePath = import_path2.default.join(storageDir3, `listen-state-${drawingId}.json`);
   await clearStaleHooksQueue(storageDir3);
@@ -23855,8 +23863,8 @@ Drawing ID: \`${drawingId}\``
 // src/tools/closeWidget.ts
 var import_promises3 = __toESM(require("fs/promises"), 1);
 var import_path3 = __toESM(require("path"), 1);
-var import_os2 = __toESM(require("os"), 1);
-var xdgDataHome = process.env.XDG_DATA_HOME || import_path3.default.join(import_os2.default.homedir(), ".local", "share");
+var import_os3 = __toESM(require("os"), 1);
+var xdgDataHome = process.env.XDG_DATA_HOME || import_path3.default.join(import_os3.default.homedir(), ".local", "share");
 var storageDir = import_path3.default.join(xdgDataHome, "collaborative-canvas");
 async function handleCloseWidget(storage, args) {
   const { drawingId } = args;
@@ -24018,8 +24026,8 @@ Last modified: ${new Date(updated.modified).toLocaleString()}
 // src/tools/captureScreenshot.ts
 var import_promises4 = __toESM(require("fs/promises"), 1);
 var import_path4 = __toESM(require("path"), 1);
-var import_os3 = __toESM(require("os"), 1);
-var xdgDataHome2 = process.env.XDG_DATA_HOME || import_path4.default.join(import_os3.default.homedir(), ".local", "share");
+var import_os4 = __toESM(require("os"), 1);
+var xdgDataHome2 = process.env.XDG_DATA_HOME || import_path4.default.join(import_os4.default.homedir(), ".local", "share");
 var storageDir2 = import_path4.default.join(xdgDataHome2, "collaborative-canvas");
 var POLL_INTERVAL = 500;
 var TIMEOUT = 15e3;
@@ -24098,7 +24106,7 @@ Drawing ID: ${drawingId}`
 
 // src/collaboration/EnvironmentDetector.ts
 var import_fs = require("fs");
-var import_os4 = require("os");
+var import_os5 = require("os");
 var import_path5 = __toESM(require("path"), 1);
 var EnvironmentDetector = class {
   server;
@@ -24137,7 +24145,7 @@ var EnvironmentDetector = class {
       const capsString = JSON.stringify(capabilities);
       console.error(`\u{1F4CA} Client capabilities: ${capsString.substring(0, 200)}...`);
     }
-    const homeDir = (0, import_os4.homedir)();
+    const homeDir = (0, import_os5.homedir)();
     const claudeCodeConfigLocal = import_path5.default.join(homeDir, ".claude", "settings.json");
     const claudeDesktopConfigMac = import_path5.default.join(
       homeDir,
@@ -24188,12 +24196,12 @@ var EnvironmentDetector = class {
 // src/collaboration/HooksStrategy.ts
 var import_fs2 = require("fs");
 var import_path6 = __toESM(require("path"), 1);
-var import_os5 = require("os");
+var import_os6 = require("os");
 var import_proper_lockfile2 = __toESM(require_proper_lockfile(), 1);
 var HooksStrategy = class {
   queueFilePath;
   constructor() {
-    const homeDir = (0, import_os5.homedir)();
+    const homeDir = (0, import_os6.homedir)();
     const xdgDataHome3 = process.env.XDG_DATA_HOME || import_path6.default.join(homeDir, ".local", "share");
     const canvasDir = import_path6.default.join(xdgDataHome3, "collaborative-canvas");
     if (!(0, import_fs2.existsSync)(canvasDir)) {

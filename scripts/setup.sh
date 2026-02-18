@@ -32,16 +32,50 @@ echo -e "${BOLD}${BLUE}║        Collaborative Canvas - Setup                  
 echo -e "${BOLD}${BLUE}╚════════════════════════════════════════════════════════════╝${NC}"
 echo ""
 
-# Pre-flight: check node version (needed for MCP runtime)
+# Pre-flight: ensure Node.js 18+ is available (required for MCP runtime)
+install_node() {
+    echo -e "${YELLOW}Node.js not found or too old. Installing...${NC}"
+    if [ "$PLATFORM_HINT" = "Darwin" ] && command -v brew &> /dev/null; then
+        brew install node@22
+    elif command -v apt-get &> /dev/null; then
+        # Debian/Ubuntu: use NodeSource
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - 2>/dev/null
+        sudo apt-get install -y nodejs 2>/dev/null
+    elif command -v dnf &> /dev/null; then
+        sudo dnf install -y nodejs 2>/dev/null
+    elif command -v pacman &> /dev/null; then
+        sudo pacman -S --noconfirm nodejs npm 2>/dev/null
+    elif command -v apk &> /dev/null; then
+        sudo apk add --no-cache nodejs npm 2>/dev/null
+    else
+        echo -e "${RED}Error: Could not auto-install Node.js. Install Node.js 18+ manually:${NC}"
+        echo -e "  https://nodejs.org/en/download"
+        exit 1
+    fi
+}
+
+PLATFORM_HINT="$(uname -s 2>/dev/null || echo 'Unknown')"
+
 if ! command -v node &> /dev/null; then
-    echo -e "${RED}Error: Node.js is not installed${NC}"
+    install_node
+fi
+
+# Verify version after potential install
+if ! command -v node &> /dev/null; then
+    echo -e "${RED}Error: Node.js installation failed. Install Node.js 18+ manually:${NC}"
+    echo -e "  https://nodejs.org/en/download"
     exit 1
 fi
 
 NODE_MAJOR=$(node --version | sed 's/v//' | cut -d. -f1)
 if [ "$NODE_MAJOR" -lt 18 ]; then
-    echo -e "${RED}Error: Node.js 18+ required (found $(node --version))${NC}"
-    exit 1
+    echo -e "${YELLOW}Node.js $(node --version) is too old (need 18+). Upgrading...${NC}"
+    install_node
+    NODE_MAJOR=$(node --version | sed 's/v//' | cut -d. -f1)
+    if [ "$NODE_MAJOR" -lt 18 ]; then
+        echo -e "${RED}Error: Node.js 18+ required (found $(node --version))${NC}"
+        exit 1
+    fi
 fi
 echo -e "  Node.js: ${GREEN}$(node --version)${NC}"
 
@@ -157,39 +191,71 @@ echo -e "  ${GREEN}✓${NC} Extracted to $DEST_DIR"
 # Step 5: Pre-approve MCP tool permissions
 echo ""
 echo -e "${BLUE}━━━ Configuring tool permissions${NC}"
-SETTINGS_FILE="$HOME/.claude/settings.json"
 TOOL_RULE="mcp__plugin_collaborative-canvas_canvas__*"
 
-if [ -f "$SETTINGS_FILE" ]; then
-    # Check if the rule already exists
-    if node -e "
-      const s = require('$SETTINGS_FILE');
-      const allow = s.permissions?.allow || [];
-      process.exit(allow.some(r => r === '$TOOL_RULE') ? 0 : 1);
-    " 2>/dev/null; then
-        echo -e "  ${GREEN}✓${NC} Tool permissions already configured"
-    else
-        # Inject the rule into permissions.allow using Node.js for safe JSON manipulation
-        if node -e "
+# Primary: use headless Claude to inject permission (knows its own config path,
+# handles CLAUDE_CONFIG_DIR overrides, and safely merges JSON)
+PERM_OK=false
+
+if command -v claude &> /dev/null; then
+    echo "  Using Claude Code to configure permissions..."
+    RESULT=$(claude -p \
+      "Add the string '$TOOL_RULE' to the permissions.allow array in your \
+       user-level settings.json. If it already exists, do nothing. Preserve all \
+       existing settings. \
+       \
+       Known settings.json locations: \
+       - macOS/Linux: ~/.claude/settings.json \
+       - Windows: %USERPROFILE%\\.claude\\settings.json \
+       - Custom: \$CLAUDE_CONFIG_DIR/settings.json (if env var set) \
+       - npm global install: same paths as above \
+       - Homebrew: same paths as above \
+       \
+       Check which path exists on this system and modify it. \
+       Output ONLY the word 'done' or 'exists' — nothing else." \
+      --allowedTools 'Read,Edit,Write' 2>/dev/null || echo "error")
+
+    case "$RESULT" in
+        *done*|*exists*|*Done*|*Exists*|*already*)
+            echo -e "  ${GREEN}✓${NC} Tool permissions configured via Claude"
+            PERM_OK=true
+            ;;
+    esac
+fi
+
+# Fallback: direct JSON manipulation via Node.js (handles default path only)
+if [ "$PERM_OK" = false ]; then
+    # Resolve settings path (respect CLAUDE_CONFIG_DIR if set)
+    CLAUDE_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+    SETTINGS_FILE="$CLAUDE_DIR/settings.json"
+
+    if [ -f "$SETTINGS_FILE" ]; then
+        echo "  Using Node.js fallback..."
+        node -e "
           const fs = require('fs');
           const p = '$SETTINGS_FILE';
           const s = JSON.parse(fs.readFileSync(p, 'utf-8'));
+          const allow = (s.permissions && s.permissions.allow) || [];
+          if (allow.some(r => r === '$TOOL_RULE')) { process.exit(2); }
           if (!s.permissions) s.permissions = {};
           if (!s.permissions.allow) s.permissions.allow = [];
           s.permissions.allow.push('$TOOL_RULE');
           fs.writeFileSync(p, JSON.stringify(s, null, 2) + '\n');
-        " 2>/dev/null; then
+        " 2>/dev/null
+        RESULT=$?
+        if [ $RESULT -eq 2 ]; then
+            echo -e "  ${GREEN}✓${NC} Tool permissions already configured"
+            PERM_OK=true
+        elif [ $RESULT -eq 0 ]; then
             echo -e "  ${GREEN}✓${NC} Added tool pre-approval to settings"
-        else
-            echo -e "  ${YELLOW}⚠${NC} Could not auto-configure permissions"
-            echo -e "  Add this to ~/.claude/settings.json permissions.allow:"
-            echo -e "  ${BOLD}\"$TOOL_RULE\"${NC}"
+            PERM_OK=true
         fi
     fi
-else
-    echo -e "  ${YELLOW}⚠${NC} ~/.claude/settings.json not found"
-    echo -e "  After first Claude Code launch, add to permissions.allow:"
-    echo -e "  ${BOLD}\"$TOOL_RULE\"${NC}"
+fi
+
+if [ "$PERM_OK" = false ]; then
+    echo -e "  ${YELLOW}⚠${NC} Could not auto-configure permissions"
+    echo -e "  Add ${BOLD}\"$TOOL_RULE\"${NC} to permissions.allow in your Claude settings"
 fi
 
 # Done
